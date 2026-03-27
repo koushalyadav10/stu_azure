@@ -263,17 +263,17 @@ function renderRecentStudents(students) {
   tableWrap.innerHTML = `
      <table>
       <thead>
-         <tr>
+          <tr>
           <th>ID</th>
           <th>Name</th>
           <th>Email</th>
           <th>Marks</th>
           <th>Grade</th>
-         </tr>
+          </tr>
       </thead>
       <tbody>
         ${students.map(student => `
-           <tr>
+            <tr>
             <td class="td-id">#${student.id}</td>
             <td>
               <div class="student-name-cell">
@@ -293,7 +293,7 @@ function renderRecentStudents(students) {
               </div>
             </td>
             <td><span class="grade-badge grade-${student.grade.replace('+', '\\+')}">${student.grade}</span></td>
-           </tr>
+            </tr>
         `).join('')}
       </tbody>
     </table>
@@ -435,18 +435,18 @@ function renderStudentsTable() {
   tableWrap.innerHTML = `
     <table>
       <thead>
-         <tr>
+          <tr>
           <th class="sortable" data-sort="id">ID <span class="sort-icon">↕</span></th>
           <th class="sortable" data-sort="name">Name <span class="sort-icon">↕</span></th>
           <th>Email</th>
           <th class="sortable" data-sort="marks">Marks <span class="sort-icon">↕</span></th>
           <th class="sortable" data-sort="grade">Grade <span class="sort-icon">↕</span></th>
           <th>Actions</th>
-         </tr>
+          </tr>
       </thead>
       <tbody>
         ${data.map(student => `
-           <tr>
+            <tr>
             <td class="td-id">#${student.id}</td>
             <td>
               <div class="student-name-cell">
@@ -470,7 +470,7 @@ function renderStudentsTable() {
               <button class="btn btn-ghost btn-sm btn-icon edit-student" data-id="${student.id}" title="Edit">✏️</button>
               ${Auth.isAdmin() ? `<button class="btn btn-danger btn-sm btn-icon delete-student" data-id="${student.id}" data-name="${escapeHtml(student.name)}" title="Delete">🗑️</button>` : ''}
             </td>
-           </tr>
+            </tr>
         `).join('')}
       </tbody>
     </table>
@@ -579,13 +579,13 @@ function openStudentModal(studentId = null) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const formData = new FormData(form);
+    const formData = new FormData(e.target); // Using e.target instead of form
     
-    // Student form data - CORRECT
+    // Student form data
     const data = {
-      name: formData.get('name'),
-      email: formData.get('email') || null,
-      marks: parseFloat(formData.get('marks'))
+      name: String(formData.get('name') || '').trim(),
+      email: formData.get('email') ? String(formData.get('email')).trim() : null,
+      marks: parseFloat(formData.get('marks')) || 0
     };
     
     const submitBtn = document.getElementById('submitStudentBtn');
@@ -735,39 +735,44 @@ function renderAuthPage(type) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const formData = new FormData(form);
+    // CRITICAL: Use e.target instead of form variable
+    const formData = new FormData(e.target);
     
-    const username = formData.get('username')?.trim();
-    const password = formData.get('password');
-    const email = formData.get('email')?.trim();
+    const username = (formData.get('username') || '').trim();
+    const password = formData.get('password') || '';
+    const email = (formData.get('email') || '').trim();
+    
+    console.log("🔍 AUTH DATA:", { username, email, password: password ? '***' : '' });
     
     const submitBtn = document.getElementById('authSubmitBtn');
     
     // Validation
     if (!username) {
-      showToast('Username is required', 'error');
+      showToast('Username is required ❌', 'error');
       return;
     }
     
     if (!password) {
-      showToast('Password is required', 'error');
+      showToast('Password is required ❌', 'error');
       return;
     }
     
     if (!isLogin && !email) {
-      showToast('Email is required', 'error');
+      showToast('Email is required for signup ❌', 'error');
       return;
     }
     
-    // Final data
+    // Prepare data for API
     const data = {
-      username,
-      password
+      username: String(username),
+      password: String(password)
     };
     
     if (!isLogin) {
-      data.email = email;
+      data.email = String(email);
     }
+    
+    console.log("📤 SENDING TO API:", { ...data, password: '***' });
     
     setLoading(submitBtn, true);
     
@@ -778,14 +783,14 @@ function renderAuthPage(type) {
       
       Auth.save(result.data.user, result.data.token);
       
-      showToast(result.message || 'Success', 'success');
+      showToast(result.message || 'Success ✅', 'success');
       
       navigateTo('dashboard', true);
       
     } catch (error) {
-      console.error(error);
+      console.error("❌ AUTH ERROR:", error);
       
-      if (error.errors) {
+      if (error.errors && Array.isArray(error.errors)) {
         error.errors.forEach(err => {
           const errorDiv = document.getElementById(`${err.field}Error`);
           if (errorDiv) {
@@ -794,7 +799,7 @@ function renderAuthPage(type) {
           }
         });
       } else {
-        showToast(error.message || 'Something went wrong', 'error');
+        showToast(error.message || 'Authentication failed ❌', 'error');
       }
       
     } finally {
