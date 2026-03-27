@@ -1,5 +1,3 @@
-// controllers/authController.js
-
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { sql, executeQuery } = require('../config/db');
@@ -9,6 +7,14 @@ async function signup(req, res) {
   try {
     const { username, email, password, role } = req.body;
 
+    // Validate required fields
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username and password are required.'
+      });
+    }
+
     // Only allow 'user' role from signup; admins are created via DB directly
     const safeRole = role === 'admin' ? 'user' : (role || 'user');
 
@@ -16,8 +22,8 @@ async function signup(req, res) {
     const existing = await executeQuery(
       `SELECT id FROM Users WHERE username = @username OR email = @email`,
       {
-        username: { type: sql.NVarChar, value: String(username || '') },
-        email: { type: sql.NVarChar, value: String(email || '') },
+        username: { type: sql.VarChar(50), value: username },
+        email: { type: sql.VarChar(100), value: email || null },
       }
     );
 
@@ -35,10 +41,10 @@ async function signup(req, res) {
        OUTPUT INSERTED.id, INSERTED.username, INSERTED.email, INSERTED.role
        VALUES (@username, @email, @password, @role)`,
       {
-        username: { type: sql.NVarChar, value: String(username || '') },
-        email: { type: sql.NVarChar, value: String(email || '') },
-        password: { type: sql.NVarChar, value: String(hashedPassword || '') },
-        role: { type: sql.NVarChar, value: String(safeRole || '') },
+        username: { type: sql.VarChar(50), value: username },
+        email: { type: sql.VarChar(100), value: email || null },
+        password: { type: sql.VarChar(255), value: hashedPassword },
+        role: { type: sql.VarChar(20), value: safeRole },
       }
     );
 
@@ -72,10 +78,18 @@ async function login(req, res) {
   try {
     const { username, password } = req.body;
 
+    // Validate required fields
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username and password are required.'
+      });
+    }
+
     const result = await executeQuery(
       `SELECT id, username, email, password, role FROM Users WHERE username = @username`,
       { 
-        username: { type: sql.NVarChar, value: String(username || '') } 
+        username: { type: sql.VarChar(50), value: username } 
       }
     );
 
