@@ -13,6 +13,9 @@ const studentRoutes = require('./routes/students');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// ─── Azure/Proxy Trust Setting (CRITICAL FOR AZURE) ───────────────────
+app.set('trust proxy', 1);
+
 // ─── Security Middleware ─────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
@@ -32,6 +35,7 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boo
 
 app.use(cors({
   origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, postman)
     if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -42,12 +46,13 @@ app.use(cors({
 
 // ─── Rate Limiting ───────────────────────────────────────────────────
 app.use(rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // limit each IP to 200 requests per windowMs
   standardHeaders: true,
   legacyHeaders: false
 }));
 
+// Stricter rate limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20
@@ -69,11 +74,12 @@ app.get('/api/health', (req, res) => {
   res.json({
     success: true,
     message: 'SMS API is running',
-    env: process.env.NODE_ENV
+    env: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
   });
 });
 
-// ─── SPA fallback ────────────────────────────────────────────────────
+// ─── SPA fallback (must be after API routes) ─────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -81,24 +87,27 @@ app.get('*', (req, res) => {
 // ─── Global Error Handler ────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err.message);
+  console.error('Stack:', err.stack);
 
   res.status(err.status || 500).json({
     success: false,
-    message:
-      process.env.NODE_ENV === 'production'
-        ? 'Internal server error'
-        : err.message
+    message: process.env.NODE_ENV === 'production'
+      ? 'Internal server error'
+      : err.message
   });
 });
 
 // ─── Start Server ────────────────────────────────────────────────────
 async function startServer() {
   try {
+    // Test database connection
     await getPool();
+    console.log('✅ Database connected successfully');
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
     });
 
   } catch (err) {
