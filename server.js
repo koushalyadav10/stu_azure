@@ -14,7 +14,7 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // ─── Azure/Proxy Trust Setting (CRITICAL FOR AZURE) ───────────────────
-app.set('trust proxy', 1);
+app.set('trust proxy', 1); // 🔥 IMPORTANT - Prevents proxy issues
 
 // ─── Security Middleware ─────────────────────────────────────────────
 app.use(helmet({
@@ -35,7 +35,6 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boo
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, postman)
     if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -46,13 +45,12 @@ app.use(cors({
 
 // ─── Rate Limiting ───────────────────────────────────────────────────
 app.use(rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // limit each IP to 200 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false
 }));
 
-// Stricter rate limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20
@@ -79,7 +77,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ─── SPA fallback (must be after API routes) ─────────────────────────
+// ─── SPA fallback ────────────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -100,7 +98,6 @@ app.use((err, req, res, next) => {
 // ─── Start Server ────────────────────────────────────────────────────
 async function startServer() {
   try {
-    // Test database connection
     await getPool();
     console.log('✅ Database connected successfully');
 
