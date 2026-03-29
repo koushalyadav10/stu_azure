@@ -540,6 +540,9 @@ function renderPagination(pagination) {
 function openStudentModal(studentId = null) {
   const isEdit = !!studentId;
   const student = isEdit ? studentsCache.data.find(s => s.id === studentId) : null;
+
+  // 🔥 REMOVE old modal (important fix)
+  document.getElementById('studentModal')?.remove();
   
   const modalHTML = `
     <div class="modal-overlay" id="studentModal">
@@ -576,12 +579,13 @@ function openStudentModal(studentId = null) {
   openModal('studentModal');
   
   const form = document.getElementById('studentForm');
-  form.addEventListener('submit', async (e) => {
+
+  // 🔥 FIX: only one submit handler
+  form.onsubmit = async (e) => {
     e.preventDefault();
     
-    const formData = new FormData(e.target); // Using e.target instead of form
-    
-    // Student form data
+    const formData = new FormData(e.target);
+
     const data = {
       name: String(formData.get('name') || '').trim(),
       email: formData.get('email') ? String(formData.get('email')).trim() : null,
@@ -603,13 +607,14 @@ function openStudentModal(studentId = null) {
       closeModal('studentModal');
       await loadStudents();
       loadDashboardData(true);
+      
     } catch (error) {
       console.error('Failed to save student:', error);
       showToast(error.message || 'Failed to save student', 'error');
     } finally {
       setLoading(submitBtn, false);
     }
-  });
+  };
 }
 
 function confirmDeleteStudent(id, name) {
